@@ -17,6 +17,13 @@ interface UseSessionAutosaveProps {
  * Hook to handle automatic session saving.
  * Updates the current session when currentSessionId is set; otherwise creates a new session.
  * Clears currentSessionId when messages are cleared.
+ *
+ * Race-safety: all saves are serialized through saveChainRef so only one
+ * createSession() can run at a time. currentSessionIdRef always reflects the
+ * latest React state value so async callbacks never act on a stale closure ID.
+ *
+ * Persistence: the full message array is always written to disk. maxMessages
+ * only governs what is sent to the model (context window), not what is stored.
  */
 export function useSessionAutosave({
 	messages,
@@ -28,6 +35,13 @@ export function useSessionAutosave({
 	const initPromiseRef = useRef<Promise<boolean> | null>(null);
 	const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 	const lastSaveRef = useRef<number>(0);
+
+	const currentSessionIdRef = useRef<string | null>(currentSessionId);
+	useEffect(() => {
+		currentSessionIdRef.current = currentSessionId;
+	}, [currentSessionId]);
+
+	const saveChainRef = useRef<Promise<void>>(Promise.resolve());
 
 	// Clear current session when conversation is cleared
 	useEffect(() => {
@@ -71,7 +85,6 @@ export function useSessionAutosave({
 		const sessionConfig = config.sessions;
 		const autoSave = sessionConfig?.autoSave ?? true;
 		const saveInterval = sessionConfig?.saveInterval ?? 30000;
-		const maxMessages = sessionConfig?.maxMessages ?? 1000;
 
 		if (!autoSave || !initPromiseRef.current || messages.length === 0) {
 			return;
@@ -84,57 +97,75 @@ export function useSessionAutosave({
 		const now = Date.now();
 		const timeSinceLastSave = now - lastSaveRef.current;
 
-		const saveSession = async () => {
+		const messagesToPersist = messages;
+		const providerAtSchedule = currentProvider;
+		const modelAtSchedule = currentModel;
+
+		const doSave = async () => {
 			try {
 				// Wait for initialization to complete before saving
 				const initialized = await initPromiseRef.current;
 				if (!initialized) return;
 
-				// Truncate to most recent messages to prevent unbounded session sizes
-				const messagesToSave =
-					messages.length > maxMessages
-						? messages.slice(-maxMessages)
-						: messages;
-
-				const userMessages = messagesToSave.filter(msg => msg.role === 'user');
+				// Derive the session title from the full history.
+				const userMessages = messagesToPersist.filter(
+					msg => msg.role === 'user',
+				);
 				const lastUserMessage = userMessages[userMessages.length - 1];
 				const title = lastUserMessage
 					? lastUserMessage.content.substring(0, 50) +
 						(lastUserMessage.content.length > 50 ? '...' : '')
 					: `Session ${new Date().toLocaleDateString()}`;
 
-				if (currentSessionId) {
-					const session = await sessionManager.readSession(currentSessionId);
+				const sessionId = currentSessionIdRef.current;
+
+				if (sessionId) {
+					const session = await sessionManager.readSession(sessionId);
 					if (session) {
-						session.messages = messagesToSave;
-						session.messageCount = messagesToSave.length;
+						session.messages = messagesToPersist;
+						session.messageCount = messagesToPersist.length;
 						session.title = title;
-						session.provider = currentProvider;
-						session.model = currentModel;
+						session.provider = providerAtSchedule;
+						session.model = modelAtSchedule;
 						// Don't set lastAccessedAt here — saveSession() handles
 						// the timestamp in both the file and index consistently.
 						await sessionManager.saveSession(session);
 					} else {
 						const newSession = await sessionManager.createSession({
 							title,
-							messageCount: messagesToSave.length,
-							provider: currentProvider,
-							model: currentModel,
+							messageCount: messagesToPersist.length,
+							provider: providerAtSchedule,
+							model: modelAtSchedule,
 							workingDirectory: process.cwd(),
-							messages: messagesToSave,
+							messages: messagesToPersist,
 						});
 						setCurrentSessionId(newSession.id);
+						currentSessionIdRef.current = newSession.id;
 					}
 				} else {
-					const newSession = await sessionManager.createSession({
-						title,
-						messageCount: messagesToSave.length,
-						provider: currentProvider,
-						model: currentModel,
-						workingDirectory: process.cwd(),
-						messages: messagesToSave,
-					});
-					setCurrentSessionId(newSession.id);
+					const latestId = currentSessionIdRef.current;
+					if (latestId) {
+						const session = await sessionManager.readSession(latestId);
+						if (session) {
+							session.messages = messagesToPersist;
+							session.messageCount = messagesToPersist.length;
+							session.title = title;
+							session.provider = providerAtSchedule;
+							session.model = modelAtSchedule;
+							await sessionManager.saveSession(session);
+						}
+					} else {
+						const newSession = await sessionManager.createSession({
+							title,
+							messageCount: messagesToPersist.length,
+							provider: providerAtSchedule,
+							model: modelAtSchedule,
+							workingDirectory: process.cwd(),
+							messages: messagesToPersist,
+						});
+						setCurrentSessionId(newSession.id);
+						currentSessionIdRef.current = newSession.id;
+					}
 				}
 
 				lastSaveRef.current = Date.now();
@@ -144,18 +175,12 @@ export function useSessionAutosave({
 		};
 
 		if (timeSinceLastSave >= saveInterval) {
-			void saveSession();
+			saveChainRef.current = saveChainRef.current.then(doSave);
 		} else {
 			const delay = saveInterval - timeSinceLastSave;
 			timeoutRef.current = setTimeout(() => {
-				void saveSession();
+				saveChainRef.current = saveChainRef.current.then(doSave);
 			}, delay);
 		}
-	}, [
-		messages,
-		currentProvider,
-		currentModel,
-		currentSessionId,
-		setCurrentSessionId,
-	]);
+	}, [messages, currentProvider, currentModel, setCurrentSessionId]);
 }
