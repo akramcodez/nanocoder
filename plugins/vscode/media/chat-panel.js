@@ -13,7 +13,7 @@
 	const addImageBtn = document.getElementById('add-image-btn');
 	const imageUpload = document.getElementById('image-upload');
 	const imagePreviewContainer = document.getElementById('image-preview-container');
-	
+
 	let pendingImages = [];
 	let pendingUserMessageText = null;
 
@@ -36,7 +36,7 @@
 					document.getElementById('provider-dropdown').classList.add('hidden');
 					document.getElementById('model-dropdown').classList.add('hidden');
 					document.getElementById('mode-dropdown').classList.add('hidden');
-					
+
 					if (isHidden) {
 						this.dropdown.classList.remove('hidden');
 					}
@@ -45,7 +45,7 @@
 
 			setOptions(options, selectedValue) {
 				this.dropdown.innerHTML = '';
-				
+
 				if (!options || options.length === 0) {
 					this.label.textContent = 'None available';
 					this.trigger.disabled = true;
@@ -63,17 +63,17 @@
 					const item = document.createElement('div');
 					item.className = 'px-3 py-2 cursor-pointer hover:bg-vscode-list-hover transition-colors text-[0.9em] truncate';
 					item.textContent = opt;
-					
+
 					if (opt === selectedValue) {
 						item.classList.add('bg-vscode-list-active');
 						item.classList.add('text-vscode-list-activeFg');
-						
+
 						let displayValue = opt;
 						if (displayValue.includes('/')) {
 							displayValue = displayValue.split('/').pop();
 						}
 						this.label.textContent = displayValue || 'Loading...';
-						
+
 						hasSelected = true;
 					} else {
 						item.classList.add('text-vscode-dropdown-foreground');
@@ -220,7 +220,7 @@
 	function setProcessing(active) {
 		isProcessing = active;
 		if (!active) {
-			// Globally cancel any stuck spinners across all tool cards, 
+			// Globally cancel any stuck spinners across all tool cards,
 			// in case multiple aggregators were created in the same session
 			const allSpinners = document.querySelectorAll('.tool-status');
 			allSpinners.forEach(statusEl => {
@@ -264,7 +264,7 @@
 			}
 			imageUpload.click();
 		});
-		
+
 		imageUpload.addEventListener('change', (e) => {
 			if (e.target.files) {
 				processImageFiles(Array.from(e.target.files));
@@ -352,7 +352,7 @@
 		pendingImages.forEach((img, idx) => {
 			const wrapper = document.createElement('div');
 			wrapper.className = 'relative w-12 h-12 rounded overflow-hidden border border-vscode-input-border shrink-0 group';
-			
+
 			const imageEl = document.createElement('img');
 			// codeql[js/xss] False positive: mimeType is strictly validated and data is base64 encoded
 			const src = `data:${img.mimeType};base64,${img.data}`;
@@ -361,7 +361,7 @@
 			}
 			imageEl.className = 'w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity';
 			imageEl.onclick = () => openImageModal(imageEl.src);
-			
+
 			const removeBtn = document.createElement('button');
 			removeBtn.className = 'absolute top-0 right-0 bg-black/50 hover:bg-black/80 text-white w-5 h-5 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-bl cursor-pointer border-none outline-none';
 			removeBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
@@ -370,7 +370,7 @@
 				pendingImages.splice(idx, 1);
 				renderImagePreviews();
 			};
-			
+
 			wrapper.appendChild(imageEl);
 			wrapper.appendChild(removeBtn);
 			imagePreviewContainer.appendChild(wrapper);
@@ -380,7 +380,7 @@
 	const imageModal = document.getElementById('image-modal');
 	const modalImage = document.getElementById('modal-image');
 	const closeModalBtn = document.getElementById('close-modal-btn');
-	
+
 	function openImageModal(src) {
 		if (imageModal && modalImage) {
 			// Validate src to prevent untrusted URL redirection (CodeQL)
@@ -390,7 +390,7 @@
 			}
 		}
 	}
-	
+
 	if (closeModalBtn) {
 		closeModalBtn.addEventListener('click', () => {
 			imageModal.classList.add('hidden');
@@ -508,7 +508,7 @@
 		for (const item of attachedPaths) {
 			const chip = document.createElement('span');
 			chip.className = 'context-chip';
-			
+
 			const iconSpan = document.createElement('span');
 			iconSpan.className = 'chip-icon';
 			iconSpan.appendChild(item.kind === 'folder' ? createFolderIcon() : createFileIcon());
@@ -529,7 +529,7 @@
 			chip.appendChild(iconSpan);
 			chip.appendChild(nameSpan);
 			chip.appendChild(removeSpan);
-			
+
 			chip.addEventListener('click', e => {
 				if (e.target.classList.contains('chip-remove')) {
 					attachedPaths = attachedPaths.filter(a => a.path !== item.path);
@@ -547,7 +547,7 @@
 			e.preventDefault();
 			e.stopPropagation();
 		};
-		
+
 		// Prevent default on window to stop VS Code's native drop handler
 		window.addEventListener('dragover', (e) => e.preventDefault(), true);
 		window.addEventListener('drop', (e) => e.preventDefault(), true);
@@ -561,53 +561,47 @@
 			handleDrag(e);
 			composerBox.classList.add('drag-over');
 		}, true);
-		
+
 		composerBox.addEventListener('dragover', (e) => {
 			handleDrag(e);
 			composerBox.classList.add('drag-over');
 		}, true);
-		
+
 		composerBox.addEventListener('dragleave', (e) => {
 			handleDrag(e);
 			composerBox.classList.remove('drag-over');
 		}, true);
-		
+
 		composerBox.addEventListener('drop', e => {
 			handleDrag(e);
 			composerBox.classList.remove('drag-over');
 			const uris = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain');
 			if (!uris) return;
-			
+
 			const isWindows = navigator.userAgentData?.platform?.toLowerCase().includes('win') || navigator.userAgent.includes('Windows');
 			const paths = uris.split('\n')
 				.map(u => u.trim())
 				.filter(u => u && !u.startsWith('#'))
 				.map(u => {
 					if (u.startsWith('file://')) {
-						let p = decodeURIComponent(u.replace(/^file:\/\/\/?/, ''));
-						if (isWindows && p.match(/^[a-zA-Z]:/)) {
-							// Already dropped leading slash via the regex above if it had exactly three slashes. 
-							// But if it had two slashes e.g. file://C:/ it would become C:/
-							// If it had three e.g. file:///C:/ the regex stripped up to 3 slashes so it also becomes C:/
-							// Wait, what if it was file:///C:/... ? `u.replace(/^file:\/\/\/?/, '')` removes `file:///`.
-							// What about UNC paths? `file://server/share` -> regex removes `file://`, leaving `server/share`. 
-							// Wait, `u.replace(/^file:\/\/\/?/, '')` removes `file:///` or `file://`.
-							// For UNC `file://server/share`, `replace` makes it `server/share`. 
-							// So we need to put `//` back for UNC on Windows? 
-							// Let's implement Will's explicit advice:
-							// "strip with /^file:\/\/\/?/ and on Windows drop the leading slash before a drive letter."
+						// Decode and strip 'file://' or 'file:///'
+						let parsedPath = decodeURIComponent(u.replace(/^file:\/\/\/?/, ''));
+
+						if (isWindows) {
+							// If it has a leading slash before the drive letter, remove it
+							if (parsedPath.match(/^\/[a-zA-Z]:/)) {
+								parsedPath = parsedPath.substring(1);
+							} else if (!parsedPath.match(/^[a-zA-Z]:/)) {
+								// If it doesn't match a drive letter, it's likely a UNC path
+								// file://server/share becomes server/share. We prepend \\ for Windows UNC.
+								parsedPath = '\\\\' + parsedPath.replace(/\//g, '\\');
+							}
 						}
-						// Let's strictly follow Will's suggestion:
-						let p2 = decodeURIComponent(u.replace(/^file:\/\/\/?/, ''));
-						if (isWindows && p2.match(/^\/[a-zA-Z]:/)) {
-							p2 = p2.substring(1);
-						}
-						// wait, for UNC path `file://server/share`, replacing `/^file:\/\/\/?/` removes `file://`. 
-						// So it becomes `server/share`. On Windows UNC paths need `\\server\share`. 
-						// Actually vscode drop UNC path comes as `file:////server/share` or `file://server/share`.
-						// If we don't mess with it too much, let's just do exactly what Will said.
-						return p2;
+						return parsedPath;
 					}
+					return u;
+				});
+
 			paths.forEach(p => vscode.postMessage({ type: 'requestPathInfo', path: p }));
 		}, true);
 	}
@@ -691,18 +685,18 @@
 					chip.setAttribute('data-path', chipData.path);
 					chip.setAttribute('data-kind', chipData.kind);
 					chip.style.paddingRight = '8px';
-					
+
 					const iconSpan = document.createElement('span');
 					iconSpan.style.marginRight = '4px';
 					iconSpan.style.display = 'flex';
 					iconSpan.style.alignItems = 'center';
 					iconSpan.appendChild(chipData.kind === 'folder' ? createFolderIcon() : createFileIcon());
-					
+
 					const nameSpan = document.createElement('span');
 					nameSpan.className = 'chip-name';
 					nameSpan.setAttribute('title', chipData.path);
 					nameSpan.textContent = chipData.name;
-					
+
 					chip.appendChild(iconSpan);
 					chip.appendChild(nameSpan);
 					chipsContainer.appendChild(chip);
@@ -1174,7 +1168,7 @@
 				headerRow.appendChild(status);
 				headerRow.appendChild(label);
 				item.appendChild(headerRow);
-				
+
 				this.body.appendChild(item);
 				this.toolItems.set(toolCallId, item);
 
