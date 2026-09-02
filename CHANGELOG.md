@@ -1,5 +1,16 @@
 # @nanocollective/nanocoder
 
+# 1.31.0
+
+- Added support for a .nanocoderignore file. Patterns in it keep tracked-but-noisy files (lockfiles, generated fixtures) out of directory listings, file search and the file explorer, so they stop eating context even though .gitignore doesn't cover them. It is a context-hygiene tool rather than a secrets boundary: read_file and execute_bash don't consult it, and checkpoints deliberately skip it so hidden files are still snapshotted and restored. Thanks to @A-S-Manoj. Closes #755.
+- Added an action timeline in the VS Code sidebar so you can click a prior mutating tool step and revert the workspace files and conversation back to that point.
+
+- Hardened the VS Code action timeline: it no longer snapshots its own before-images, skips a checkpoint rather than recording a wrong one when the workspace scan is truncated, leaves binary files alone, reverts a whole assistant turn at once, validates paths read back from the timeline index, and keeps the chat thread on screen when a revert is refused.
+- Fixed the daemon socket path on Unix when a deeply nested project pushes it past the `sockaddr_un.sun_path` limit (104 bytes on macOS, 108 on Linux). libuv silently truncates overlong paths rather than failing, so the daemon reported a socket it never bound, its stale-socket cleanup missed the real file, and two projects sharing a truncation prefix could collide on a single socket. Nanocoder now falls back to a stable hashed socket name under the system temp directory (or `/tmp` if `TMPDIR` is itself too long), and `daemon start` reports the path the daemon actually bound instead of recomputing it.
+- Added slash command quick actions to the VS Code extension chat panel. Typing `/` in the input opens an autocomplete menu listing `/test`, `/explain`, and `/doc`, which insert a human-readable prompt template into the textarea so the user sees and can edit exactly what gets sent, alongside the existing `/clear` and `/copy` commands, which complete to their name and run as they always have. The menu only opens on a slash that starts a line, so URLs and paths are left alone.
+
+If there are any problems, feedback or thoughts please drop an issue or message us through Discord! Thank you for using Nanocoder.
+
 # 1.30.0
 
 - Added first-class provider template for Groq to the setup wizard.
