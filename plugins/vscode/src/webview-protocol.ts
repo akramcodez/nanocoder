@@ -2,6 +2,7 @@
  * Type-safe protocol for postMessage communication between the extension host
  * and the Sidebar Webview UI.
  */
+import type {SettingsData} from './settings-manager';
 
 // ---------------------------------------------------------
 // Messages: Extension Host -> Webview
@@ -90,6 +91,12 @@ export interface ExtensionMessageCopyLastCodeBlock {
 	type: 'copyLastCodeBlock';
 }
 
+/** Prompt built by an editor code lens; the composer submits it verbatim. */
+export interface ExtensionMessageRunPrompt {
+	type: 'runPrompt';
+	text: string;
+}
+
 export interface ExtensionMessageCopyResult {
 	type: 'copyResult';
 	ok: boolean;
@@ -107,11 +114,68 @@ export interface ExtensionMessageUpdateSessions {
 	}>;
 }
 
+export interface ExtensionMessageSettingsData {
+	type: 'settingsData';
+	settings: SettingsData & {
+		showTokenUsage: boolean;
+		providerTemplates: Record<
+			string,
+			{
+				name: string;
+				sdk: string;
+				url: string;
+				requiresKey: boolean;
+				models: string[];
+			}
+		>;
+	};
+}
+
+export interface ExtensionMessageSettingsUpdated {
+	type: 'settingsUpdated';
+	key: string;
+	success: boolean;
+	error?: string;
+}
+
+export interface ExtensionMessageProviderResult {
+	type: 'addProviderResult';
+	success: boolean;
+	error?: string;
+}
+
+export interface ExtensionMessageTokenUsageVisibility {
+	type: 'tokenUsageVisibility';
+	showTokenUsage: boolean;
+}
+
+export interface ExtensionMessageToggleSettings {
+	type: 'toggleSettings';
+}
+
 export interface ExtensionMessagePathInfoResolved {
 	type: 'pathInfoResolved';
 	path: string;
 	name: string;
 	kind: 'file' | 'folder';
+}
+
+export interface ExtensionMessagePlanReviewRequested {
+	type: 'planReviewRequested';
+	artifactPath: string;
+}
+
+export interface ExtensionMessagePlanReviewError {
+	type: 'planReviewError';
+	message: string;
+}
+
+export interface ExtensionMessageArtifactsUpdated {
+	type: 'artifactsUpdated';
+	artifacts: Array<{
+		kind: 'implementation_plan' | 'task' | 'walkthrough';
+		path: string;
+	}>;
 }
 
 /** One `@` autocomplete suggestion. */
@@ -153,14 +217,22 @@ export type ExtensionToWebviewMessage =
 	| ExtensionMessagePermissionRequested
 	| ExtensionMessagePendingChangeAdded
 	| ExtensionMessagePermissionsCancelled
+	| ExtensionMessageProviderResult
 	| ExtensionMessageSyncState
 	| ExtensionMessageUpdateSessions
 	| ExtensionMessageSessionLoaded
+	| ExtensionMessageSettingsData
+	| ExtensionMessageSettingsUpdated
+	| ExtensionMessageTokenUsageVisibility
+	| ExtensionMessageToggleSettings
 	| ExtensionMessagePathInfoResolved
+	| ExtensionMessagePlanReviewRequested
+	| ExtensionMessagePlanReviewError
+	| ExtensionMessageArtifactsUpdated
 	| ExtensionMessageCopyLastCodeBlock
 	| ExtensionMessageCopyResult
+	| ExtensionMessageRunPrompt
 	| ExtensionMessageMentionCompletions;
-
 
 // ---------------------------------------------------------
 // Messages: Webview -> Extension Host
@@ -172,6 +244,12 @@ export interface WebviewMessageReady {
 
 export interface WebviewMessageSubmitMessage {
 	type: 'submitMessage';
+	text: string;
+	images?: { data: string; mimeType: string }[];
+}
+
+export interface WebviewMessageRetryMessage {
+	type: 'retryMessage';
 	text: string;
 	images?: { data: string; mimeType: string }[];
 }
@@ -232,6 +310,25 @@ export interface WebviewMessageDeleteSession {
 	sessionId: string;
 }
 
+export interface WebviewMessageRequestSettings {
+	type: 'requestSettings';
+}
+
+export interface WebviewMessageUpdateSetting {
+	type: 'updateSetting';
+	key: string;
+	value: unknown;
+}
+
+export interface WebviewMessageOpenConfigFile {
+	type: 'openConfigFile';
+	file: 'agents.config.json' | 'nanocoder-preferences.json' | '.mcp.json';
+}
+
+export interface WebviewMessageRestartAcp {
+	type: 'restartAcp';
+}
+
 export interface WebviewMessageRenameSession {
 	type: 'renameSession';
 	sessionId: string;
@@ -257,6 +354,25 @@ export interface WebviewMessageShowError {
 	message: string;
 }
 
+export interface WebviewMessageAddProvider {
+	type: 'addProvider';
+	provider: {
+		name: string;
+		sdkProvider: string;
+		baseUrl?: string;
+		apiKey?: string;
+		models?: string[];
+	};
+}
+
+export interface WebviewMessageApprovePlan {
+	type: 'approvePlan';
+}
+
+export interface WebviewMessageRevisePlan {
+	type: 'revisePlan';
+}
+
 export interface WebviewMessageCopyToClipboard {
 	type: 'copyToClipboard';
 	text: string;
@@ -279,6 +395,7 @@ export interface WebviewMessageRequestMentionCompletions {
 export type WebviewToExtensionMessage =
 	| WebviewMessageReady
 	| WebviewMessageSubmitMessage
+	| WebviewMessageRetryMessage
 	| WebviewMessageCancel
 	| WebviewMessageApproveTool
 	| WebviewMessageDenyTool
@@ -290,10 +407,17 @@ export type WebviewToExtensionMessage =
 	| WebviewMessageListSessions
 	| WebviewMessageResumeSession
 	| WebviewMessageDeleteSession
+	| WebviewMessageRequestSettings
+	| WebviewMessageUpdateSetting
+	| WebviewMessageOpenConfigFile
+	| WebviewMessageRestartAcp
 	| WebviewMessageRenameSession
 	| WebviewMessageRequestPathInfo
 	| WebviewMessageRequestOpenDialog
 	| WebviewMessageOpenPath
 	| WebviewMessageShowError
+	| WebviewMessageAddProvider
+	| WebviewMessageApprovePlan
+	| WebviewMessageRevisePlan
 	| WebviewMessageCopyToClipboard
 	| WebviewMessageRequestMentionCompletions;
