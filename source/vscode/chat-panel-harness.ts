@@ -18,20 +18,16 @@ const mediaUrl = (filename: string) =>
 // table is destructured at the top level, so a missing one throws before a
 // single element is built. chat-panel.html loads them ahead of the panel; this
 // list mirrors that order.
-const MENTION_UTILS_SOURCE = readFileSync(mediaUrl('mention-utils.js'), 'utf8');
+const _MENTION_UTILS_SOURCE = readFileSync(
+	mediaUrl('mention-utils.js'),
+	'utf8',
+);
 const URI_UTILS_SOURCE = readFileSync(mediaUrl('uri-utils.js'), 'utf8');
 const SLASH_COMMAND_UTILS_SOURCE = readFileSync(
 	mediaUrl('slash-command-utils.js'),
 	'utf8',
 );
 const PANEL_SOURCE = readFileSync(mediaUrl('chat-panel.js'), 'utf8');
-
-const MENTION_UTILS_SOURCE = readFileSync(
-	fileURLToPath(
-		new URL('../../plugins/vscode/media/mention-utils.js', import.meta.url),
-	),
-	'utf8',
-);
 
 const SHELL_IDS = [
 	'add-image-btn',
@@ -354,7 +350,7 @@ export function createPanel(options: {marked?: boolean} = {}) {
 
 	sandbox.globalThis = sandbox;
 	createContext(sandbox);
-	runInContext(MENTION_UTILS_SOURCE, sandbox);
+	runInContext(_MENTION_UTILS_SOURCE, sandbox);
 	runInContext(URI_UTILS_SOURCE, sandbox);
 	runInContext(SLASH_COMMAND_UTILS_SOURCE, sandbox);
 	runInContext(PANEL_SOURCE, sandbox);
