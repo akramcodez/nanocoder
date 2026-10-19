@@ -3,6 +3,7 @@ import * as fs from 'node:fs';
 import path from 'node:path';
 import {promisify} from 'node:util';
 import {removeWorktree} from '@/utils/git-worktree';
+import {getLogger} from '@/utils/logging';
 import type {TaskDefinition} from './coordinator-utils';
 
 const execFileAsync = promisify(execFile);
@@ -87,7 +88,10 @@ export async function executeSwarmMerge(
 			try {
 				removeWorktree(targetPath, branchName, cwd);
 			} catch (e) {
-				console.error(`Failed to cleanup worktree for task ${task.id}`, e);
+				getLogger().warn('Failed to clean up swarm worktree', {
+					taskId: task.id,
+					error: e instanceof Error ? e.message : String(e),
+				});
 			}
 		}
 	}
@@ -115,7 +119,10 @@ export async function executeSwarmRollback(
 			try {
 				removeWorktree(targetPath, branchName, cwd);
 			} catch (e) {
-				console.error(`Rollback: failed to remove worktree for ${task.id}`, e);
+				getLogger().warn('Rollback: failed to remove swarm worktree', {
+					taskId: task.id,
+					error: e instanceof Error ? e.message : String(e),
+				});
 			}
 		}
 	}
